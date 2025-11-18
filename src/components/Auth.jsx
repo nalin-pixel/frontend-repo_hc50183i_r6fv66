@@ -17,30 +17,33 @@ export default function Auth({ onSuccess }){
         const body = new URLSearchParams()
         body.append('username', email)
         body.append('password', password)
-        const res = await fetch(`${API}/auth/login`, { method:'POST', body })
-        const data = await res.json()
+        const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Accept':'application/json' }, body })
+        const data = await res.json().catch(() => ({}))
         if(!res.ok) throw new Error(data.detail || 'Błąd logowania')
         localStorage.setItem('token', data.access_token)
         onSuccess?.()
       } else {
-        const res = await fetch(`${API}/auth/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) })
-        const data = await res.json()
+        const res = await fetch(`${API}/auth/register`, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({ email, password }) })
+        const data = await res.json().catch(() => ({}))
         if(!res.ok) throw new Error(data.detail || 'Błąd rejestracji')
         localStorage.setItem('token', data.access_token)
         onSuccess?.()
       }
-    }catch(err){ setError(err.message) }
+    }catch(err){
+      // Network errors surface as generic message; provide clearer hint
+      setError(err?.message === 'Failed to fetch' ? 'Brak połączenia z serwerem. Spróbuj ponownie za chwilę.' : err.message)
+    }
     finally{ setLoading(false) }
   }
 
   const reset = async () => {
     setLoading(true); setError('')
     try{
-      const res = await fetch(`${API}/auth/reset-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, new_password: password }) })
-      const data = await res.json()
+      const res = await fetch(`${API}/auth/reset-password`, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({ email, new_password: password }) })
+      const data = await res.json().catch(() => ({}))
       if(!res.ok) throw new Error(data.detail || 'Błąd resetu hasła')
       setMode('login')
-    }catch(err){ setError(err.message) }
+    }catch(err){ setError(err?.message === 'Failed to fetch' ? 'Brak połączenia z serwerem. Spróbuj ponownie za chwilę.' : err.message) }
     finally{ setLoading(false) }
   }
 
@@ -57,6 +60,7 @@ export default function Auth({ onSuccess }){
         <button className="underline" onClick={()=>setMode(mode==='login'?'register':'login')}>{mode==='login'?'Utwórz konto':'Masz konto? Zaloguj'}</button>
         <button className="underline" onClick={reset}>Reset hasła</button>
       </div>
+      <div className="mt-3 text-xs text-slate-400">Serwer: {API}</div>
     </div>
   )
 }
